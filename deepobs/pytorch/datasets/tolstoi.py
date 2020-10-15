@@ -1,12 +1,18 @@
+# Modified by Prabhu Teja <prabhu.teja@idiap.ch>,
+# Florian Mai <florian.mai@idiap.ch>
+
+
 # -*- coding: utf-8 -*-
 """Tolstoi DeepOBS dataset."""
 
 import os
+
 import numpy as np
-from torch.utils import data as dat
-from . import dataset
-from .. import config
 import torch
+from deepobs import config
+from torch.utils import data as dat
+
+from . import dataset
 
 
 class tolstoi(dataset.DataSet):
@@ -24,7 +30,7 @@ class tolstoi(dataset.DataSet):
 
   """
 
-    def __init__(self, batch_size, seq_length=50, train_eval_size=653237):
+    def __init__(self, batch_size, seq_length=50, train_eval_size=500):
         """Creates a new Tolstoi instance.
 
     Args:
@@ -41,7 +47,7 @@ class tolstoi(dataset.DataSet):
         self._train_eval_size = train_eval_size
         super(tolstoi, self).__init__(batch_size)
 
-    def _make_dataloader(self, filepath):
+    def _read_file(self, filepath):
         # Load the array of character ids, determine the number of batches that
         # can be produced, given batch size and sequence lengh
         arr = np.load(filepath)
@@ -72,18 +78,34 @@ class tolstoi(dataset.DataSet):
         Y = np.array(y_batches)
 
         dataset = dat.TensorDataset(torch.from_numpy(X), torch.from_numpy(Y))
-
         return dataset
-
-    def _make_train_dataloader(self):
-        filepath = os.path.join(config.get_data_dir(), "tolstoi", "train.npy")
-        return self._make_dataloader(filepath)
-
-    def _make_train_eval_dataloader(self):
-        indices = np.arange(self._train_eval_size // (self._batch_size*self._seq_length))
-        train_eval_set = self._train_dataloader[indices]
-        return dat.TensorDataset(train_eval_set[0], train_eval_set[1])
 
     def _make_test_dataloader(self):
         filepath = os.path.join(config.get_data_dir(), "tolstoi", "test.npy")
-        return self._make_dataloader(filepath)
+        loader = dat.DataLoader(self._read_file(filepath),
+                                batch_size=self._batch_size,
+                                drop_last=True,
+                                pin_memory=self._pin_memory,
+                                num_workers=self._num_workers,
+                                sampler=None,
+                                shuffle=False)
+        return loader
+
+    def _make_train_and_valid_dataloader(self):
+        filepath = os.path.join(config.get_data_dir(), "tolstoi", "train.npy")
+        train_dataset = self._read_file(filepath)
+        train_sampler, valid_sampler = self._make_train_eval_split_sampler(train_dataset)
+        train_loader = dat.DataLoader(train_dataset,
+                                      batch_size=self._batch_size,
+                                      drop_last=True,
+                                      pin_memory=self._pin_memory,
+                                      num_workers=self._num_workers,
+                                      sampler=train_sampler,
+                                      shuffle=False)
+        valid_loader = dat.DataLoader(train_dataset, batch_size=self._batch_size,
+                                      drop_last=True,
+                                      pin_memory=self._pin_memory,
+                                      num_workers=self._num_workers,
+                                      sampler=valid_sampler,
+                                      shuffle=False)
+        return train_loader, valid_loader
