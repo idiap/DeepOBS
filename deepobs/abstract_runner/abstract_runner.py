@@ -462,7 +462,7 @@ class Runner(abc.ABC):
         self._add_hyperparams_to_argparse(parser, args, hyperparams)
         self._add_training_params_to_argparse(parser, args, training_params)
 
-        cmdline_args = vars(parser.parse_args())
+        cmdline_args = vars(parser.parse_known_args()[0])
         args.update(cmdline_args)
 
         # put all optimizer hyperparams in one subdict
