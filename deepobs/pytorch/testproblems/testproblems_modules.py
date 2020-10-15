@@ -1,4 +1,9 @@
 # -*- coding: utf-8 -*-
+
+# Modified by Prabhu Teja <prabhu.teja@idiap.ch>,
+# Florian Mai <florian.mai@idiap.ch> to add IMDb LSTM problem
+
+
 """All torch modules that are used by the testproblems."""
 
 import torch
@@ -67,6 +72,64 @@ class net_cifar10_3c3d(nn.Sequential):
             if isinstance(module, nn.Linear):
                 nn.init.constant_(module.bias, 0.0)
                 nn.init.xavier_uniform_(module.weight)
+
+
+class net_imdb_bilstm(nn.Module):
+    """  BiLSTM for IMDB."""
+
+    def __init__(self, num_outputs):
+        """Args:
+            num_outputs (int): The numer of outputs (i.e. target classes)."""
+        super(net_imdb_bilstm, self).__init__()
+
+        self.vocab_size = 10000
+        self.input_size = 32
+        self.hidden_size = 128
+        self.bidirectional = False
+        self.rnn = nn.LSTM(self.input_size, self.hidden_size, bidirectional=self.bidirectional, batch_first=True)
+        self.output_layer = nn.Linear(self.hidden_size, 2)
+        self.emb = nn.Embedding(self.vocab_size+2, self.input_size, padding_idx=1)
+
+    def forward(self, input_text):
+        seq, seq_len = input_text
+        batch_size = seq.size(0)
+        max_seq_len = max(seq_len)
+        seq_len[seq_len == 0] = 1
+        seq = self.emb(seq)
+
+        # sort by seq_len to be able to pack
+        seq_len, sorted_indices = torch.sort(
+            seq_len, descending=True)
+        seq_len = seq_len.long()
+        seq = seq[sorted_indices, :, :]
+
+        # remember original sorting
+        original_indices = torch.zeros(len(seq_len))
+        for i in range(len(seq_len)):
+            original_indices[sorted_indices[i]] = i
+        original_indices = original_indices.long()
+
+        # embed and propagate through RNN
+        rnn_input = pack_padded_sequence(seq, seq_len, batch_first=True)
+        output, hidden = self.rnn(rnn_input)
+        output, output_lens = pad_packed_sequence(
+            output, batch_first=True)
+
+        # return last output and use as embedding
+        output = output.contiguous().view(batch_size, -1, self.hidden_size)
+        masks = (output_lens - 1).unsqueeze(1).unsqueeze(2)
+        masks = masks.expand(-1, max_seq_len, self.hidden_size)
+        if torch.cuda.is_available():
+            masks = masks.cuda()
+        output = output.gather(1, masks)[:, 0, :]
+
+        # recover original order
+        output = output[original_indices, :]
+
+        # produce logits
+        output = self.output_layer(output)
+
+        return output
 
 
 class net_mnist_2c2d(nn.Sequential):
