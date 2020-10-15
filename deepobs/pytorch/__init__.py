@@ -4,3 +4,4 @@ from . import datasets
 from . import testproblems
 from . import runners
 from . import config
+from . import optimizers
