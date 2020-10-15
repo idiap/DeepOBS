@@ -1,3 +1,8 @@
+######
+## Modified PTRunner and LearningRateScheduleRunner to use early stopping and 
+## step decay for the optimizers of the template in deepobs/pytorch/optimizers/adam_scheduler.
+###
+
 """Module implementing StandardRunner."""
 
 from __future__ import print_function
@@ -13,6 +18,8 @@ import numpy as np
 import warnings
 from random import seed
 from copy import deepcopy
+from .early_stopping import EarlyStopping
+import time
 
 
 class PTRunner(Runner):
@@ -133,7 +140,8 @@ class PTRunner(Runner):
                      test_losses,
                      train_accuracies,
                      valid_accuracies,
-                     test_accuracies):
+                     test_accuracies,
+                     wall_clock):
 
         print("********************************")
         print("Evaluating after {0:d} of {1:d} epochs...".format(epoch_count, num_epochs))
@@ -150,6 +158,7 @@ class PTRunner(Runner):
         test_losses.append(loss_)
         test_accuracies.append(acc_)
 
+        wall_clock.append(time.perf_counter())
         print("********************************")
 
 
@@ -160,6 +169,9 @@ class StandardRunner(PTRunner):
 
     def __init__(self, optimizer_class, hyperparameter_names):
         super(StandardRunner, self).__init__(optimizer_class, hyperparameter_names)
+        ##################################################################################
+        self.early_stopper = None
+        ##################################################################################
 
     def training(self,
                  tproblem,
@@ -180,6 +192,8 @@ class StandardRunner(PTRunner):
         valid_accuracies = []
         test_accuracies = []
 
+        wall_clock = []
+
         minibatch_train_losses = []
 
         if tb_log:
@@ -191,6 +205,11 @@ class StandardRunner(PTRunner):
                 tb_log = False
         global_step = 0
 
+        ##########################################################
+        self.early_stopper = EarlyStopping(**global_config.get_early_stopping_criteria())
+        self.early_stopper.on_train_begin()
+        ##########################################################
+
         for epoch_count in range(num_epochs + 1):
             # Evaluate at beginning of epoch.
             self.evaluate_all(epoch_count,
@@ -201,7 +220,8 @@ class StandardRunner(PTRunner):
                               test_losses,
                               train_accuracies,
                               valid_accuracies,
-                              test_accuracies)
+                              test_accuracies,
+                              wall_clock)
 
             # Break from train loop after the last round of evaluation
             if epoch_count == num_epochs:
@@ -249,6 +269,9 @@ class StandardRunner(PTRunner):
 
         if tb_log:
             summary_writer.close()
+        ##################################################################################
+        self.early_stopper.on_train_end()
+        ##################################################################################
         # Put results into output dictionary.
         output = {
             "train_losses": train_losses,
@@ -257,7 +280,8 @@ class StandardRunner(PTRunner):
             "minibatch_train_losses": minibatch_train_losses,
             "train_accuracies": train_accuracies,
             'valid_accuracies': valid_accuracies,
-            "test_accuracies": test_accuracies
+            "test_accuracies": test_accuracies,
+            'wall_clock_time': wall_clock
         }
 
         return output
@@ -271,6 +295,9 @@ class LearningRateScheduleRunner(PTRunner):
     def __init__(self, optimizer_class, hyperparameter_names):
 
         super(LearningRateScheduleRunner, self).__init__(optimizer_class, hyperparameter_names)
+        ##################################################################################
+        self.early_stopper = None
+        ##################################################################################
 
     def _add_training_params_to_argparse(self, parser, args, training_params):
         try:
@@ -353,8 +380,13 @@ class LearningRateScheduleRunner(PTRunner):
         valid_accuracies = []
         test_accuracies = []
 
+        wall_clock = []
         minibatch_train_losses = []
 
+        ##########################################################
+        self.early_stopper = EarlyStopping(**global_config.get_early_stopping_criteria())
+        self.early_stopper.on_train_begin()
+        ##########################################################
         for epoch_count in range(num_epochs + 1):
             # Evaluate at beginning of epoch.
             self.evaluate_all(epoch_count,
@@ -365,19 +397,30 @@ class LearningRateScheduleRunner(PTRunner):
                               test_losses,
                               train_accuracies,
                               valid_accuracies,
-                              test_accuracies)
+                              test_accuracies,
+                              wall_clock)
 
             # Break from train loop after the last round of evaluation
             if epoch_count == num_epochs:
                 break
-
+            
+             ## Section for early stopping
+            ##################################################################################
+            if global_config.get_early_stopping():
+                self.early_stopper.on_epoch_end(epoch_count, valid_losses[-1])
+                if self.early_stopper.stop_training:
+                    break
+            ##################################################################################
+            # get the next learning rate
+            opt.step(epoch_count)
+            # print("Setting learning rate to {0}".format(opt))
             ### Training ###
-            if lr_sched_epochs is not None:
-                # get the next learning rate
-                lr_schedule.step(epoch_count)
+            # if lr_sched_epochs is not None:
+            #     # get the next learning rate
+            #     lr_schedule.step(epoch_count)
 
-                if epoch_count in lr_sched_epochs:
-                    print("Setting learning rate to {0}".format(lr_schedule.get_lr()))
+            #     if epoch_count in lr_sched_epochs:
+            #         print("Setting learning rate to {0}".format(lr_schedule.get_lr()))
 
             # set to training mode
             tproblem.train_init_op()
@@ -408,10 +451,15 @@ class LearningRateScheduleRunner(PTRunner):
                                     test_losses,
                                     train_accuracies,
                                     valid_accuracies,
-                                    test_accuracies)
+                                    test_accuracies,
+                                    minibatch_train_losses)
                 break
             else:
                 continue
+
+        ##################################################################################
+        self.early_stopper.on_train_end()
+        ##################################################################################
 
         # Put results into output dictionary.
         output = {
@@ -421,7 +469,8 @@ class LearningRateScheduleRunner(PTRunner):
             "minibatch_train_losses": minibatch_train_losses,
             "train_accuracies": train_accuracies,
             'valid_accuracies': valid_accuracies,
-            "test_accuracies": test_accuracies
+            "test_accuracies": test_accuracies,
+            'wall_clock_time': wall_clock
         }
 
         return output

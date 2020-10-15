@@ -4,7 +4,21 @@ BASELINE_DIR = "baselines_deepobs"
 SMALL_TEST_SET = ['quadratic_deep', 'mnist_vae', 'fmnist_2c2d', 'cifar10_3c3d']
 LARGE_TEST_SET = ['fmnist_vae', 'cifar100_allcnnc', 'svhn_wrn_164', 'tolstoi_char_rnn']
 DATA_DIR = "data_deepobs"
+USE_EARLY_STOPPING = False
 
+
+def get_early_stopping():
+    return USE_EARLY_STOPPING
+
+
+def set_early_stopping(value=True):
+    global USE_EARLY_STOPPING
+    USE_EARLY_STOPPING = value
+
+
+def get_early_stopping_criteria():
+    return {'patience': 2, 'min_delta': 0.0, 'mode': 'min'}
+    
 
 def get_data_dir():
     return DATA_DIR
