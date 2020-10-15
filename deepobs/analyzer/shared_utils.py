@@ -19,6 +19,7 @@ def aggregate_runs(setting_folder):
     train_accuracies = []
     valid_accuracies = []
     test_accuracies = []
+    wallclock_times = []
 
     for run in runs:
         json_data = _load_json(setting_folder, run)
@@ -58,6 +59,13 @@ def aggregate_runs(setting_folder):
     aggregate['testproblem'] = json_data['testproblem']
     aggregate['num_epochs'] = json_data['num_epochs']
     aggregate['batch_size'] = json_data['batch_size']
+
+    if 'wall_clock_time' in json_data:
+        aggregate['wall_clock_time'] = json_data['wall_clock_time']
+    else:
+        # we need to escape wall_clock_time in cases where it's not available
+        aggregate['wall_clock_time'] = [0.]
+        
     return aggregate
 
 
