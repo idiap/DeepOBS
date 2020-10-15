@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 import torch
 
+from deepobs.config import get_data_dir
+
 DEFAULT_DEVICE = "cuda" if torch.cuda.is_available() else 'cpu'
 NUM_WORKERS = 0
 IS_DETERMINISTIC = True
