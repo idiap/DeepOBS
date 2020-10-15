@@ -223,6 +223,14 @@ class StandardRunner(PTRunner):
                               test_accuracies,
                               wall_clock)
 
+           ## Section for early stopping
+            ##################################################################################
+            if global_config.get_early_stopping():
+                self.early_stopper.on_epoch_end(epoch_count, valid_losses[-1])
+                if self.early_stopper.stop_training:
+                    break
+            ##################################################################################
+           
             # Break from train loop after the last round of evaluation
             if epoch_count == num_epochs:
                 break

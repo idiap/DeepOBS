@@ -9,6 +9,8 @@
 import torch
 from torch import nn
 from torch.nn import functional as F
+from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
+
 from .testproblems_utils import tfconv2d
 from .testproblems_utils import tfmaxpool2d
 from .testproblems_utils import flatten
@@ -458,12 +460,21 @@ class net_char_rnn(nn.Module):
         """state is a tuple for hidden and cell state for initialisation of the lstm"""
         x = self.embedding(x)
         # if no state is provided, default the state to zeros
-        if state is None:
-            x, new_state = self.lstm(x)
-        else:
-            x, new_state = self.lstm(x, state)
-        x = self.dense(x)
-        return x, new_state
+        
+        num_iterations = x.size(1)
+        predictions = []
+        for i in range(num_iterations):
+            x_iteration = x[:,i,:,:]
+            if state is None:
+                x_iteration, new_state = self.lstm(x_iteration )
+            else:
+                x_iteration , new_state = self.lstm(x_iteration, state)
+            state = new_state
+            x_iteration = self.dense(x_iteration)
+            predictions.append(x_iteration)
+            
+        output = torch.stack(predictions, dim = 1)
+        return output.view(-1, output.size(-1))
 
 class net_quadratic_deep(nn.Module):
     r"""This arhcitecture creates an output which corresponds to a loss functions of the form

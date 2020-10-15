@@ -2,7 +2,7 @@
 FRAMEWORK = 'pytorch'
 BASELINE_DIR = "baselines_deepobs"
 SMALL_TEST_SET = ['quadratic_deep', 'mnist_vae', 'fmnist_2c2d', 'cifar10_3c3d']
-LARGE_TEST_SET = ['fmnist_vae', 'cifar100_allcnnc', 'svhn_wrn_164', 'tolstoi_char_rnn']
+LARGE_TEST_SET = ['fmnist_vae', 'cifar100_allcnnc', 'svhn_wrn_164', 'tolstoi_char_rnn', 'imdb_bilstm']
 DATA_DIR = "data_deepobs"
 USE_EARLY_STOPPING = False
 
