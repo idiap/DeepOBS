@@ -23,3 +23,5 @@ from .fmnist_mlp import fmnist_mlp
 from .svhn_wrn164 import svhn_wrn164
 
 from .mnist_logreg import mnist_logreg
+from .tolstoi_char_rnn import tolstoi_char_rnn
+from .imdb_bilstm import imdb_bilstm
