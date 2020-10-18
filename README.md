@@ -1,47 +1,23 @@
-# DeepOBS - A Deep Learning Optimizer Benchmark Suite
+# Code for [*Optimizer Benchmarking Needs to Account for Hyperparameter Tuning*](https://icml.cc/virtual/2020/poster/6589) at ICML 2020
 
-![DeepOBS](docs/deepobs_banner.png "DeepOBS")
-
-[![PyPI version](https://badge.fury.io/py/deepobs.svg)](https://badge.fury.io/py/deepobs)
-[![Documentation Status](https://readthedocs.org/projects/deepobs/badge/?version=latest)](https://deepobs.readthedocs.io/en/latest/?badge=latest)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+In this we provide our PyTorch code for our ICML 2020 paper. The pdf can be found [here](https://arxiv.org/abs/1910.11758).
+In this repository we provide the background code required for running our experiments in HYPerparameter Aware Optimizer Benchmarking Protocol [(HYPAOBP)](https://TODO). We base our code on a slightly older version of **DeepOBS**. It is quite likely that multiple bug-fixes have been made on the main repository.
 
 
-**DeepOBS** is a benchmarking suite that drastically simplifies, automates and
-improves the evaluation of deep learning optimizers.
-
-It can evaluate the performance of new optimizers on a variety of
-**real-world test problems** and automatically compare them with
-**realistic baselines**.
-
-DeepOBS automates several steps when benchmarking deep learning optimizers:
-
-  - Downloading and preparing data sets.
-  - Setting up test problems consisting of contemporary data sets and realistic
-    deep learning architectures.
-  - Running the optimizers on multiple test problems and logging relevant
-    metrics.
-  - Reporting and visualization the results of the optimizer benchmark.
-
-![DeepOBS Output](docs/deepobs.jpg "DeepOBS_output")
-
-The code for the current implementation working with **TensorFlow** and **PyTorch** can be found
-on [Github](https://github.com/abahde/DeepOBS).
-
-The full documentation is available on readthedocs:
-https://deepobs-with-pytorch.readthedocs.io/
-
-The paper describing DeepOBS has been accepted for ICLR 2019 and can be found
-here:
-https://openreview.net/forum?id=rJg6ssC5Y7
+The readme of the original DeepOBS is available [here](original_readme.md)
 
 ## Installation
 
-```pip install -e git+https://github.com/abahde/DeepOBS.git@master#egg=DeepOBS```
+We recommend that the `spec-file.txt` in HYPAOBP is used to recreate the environment.  
 
-We tested the package with Python 3.6, TensorFlow version 1.12, Torch version 1.1.0 and Torchvision version 0.3.0. Other
-versions might work, and we plan to expand
-compatibility in the future.
+## Changes
 
-Further tutorials and a suggested protocol for benchmarking deep learning
-optimizers can be found on https://deepobs-with-pytorch.readthedocs.io/
+The modify **DeepOBS** in the following ways:
+
+- Added `Early Stopping` to stop after validation loss plateaus
+- Added IMDb LSTM problem, and Character RNN (Tolstoi) in PyTorch version. 
+- Added wall clock time to the list of saved attributes.
+- Added SGD and Adam with poly-learning rate decay schedules.
+- Added utility codes for plotting and computing various stats presented in our paper. 
+- Modified the `LearningRateScheduleRunner` to provide a signal to the SGD and Adam decay methods to decay the learning rate. 
+- 
