@@ -2,6 +2,7 @@ import json
 import os
 import numpy as np
 import warnings
+import time
 
 
 def aggregate_runs(setting_folder):
@@ -33,7 +34,7 @@ def aggregate_runs(setting_folder):
 
         test_losses.append(json_data['test_losses'])
         # just add accuracies to the aggregate if they are available
-        if 'train_accuracies' in json_data :
+        if 'train_accuracies' in json_data:
             train_accuracies.append(json_data['train_accuracies'])
 
             # TODO remove try-except once validation metrices are available for the baselines
@@ -49,15 +50,16 @@ def aggregate_runs(setting_folder):
         # only add the metric if available
         if len(eval(metrics)) != 0:
             aggregate[metrics] = {
-                    'mean': np.mean(eval(metrics), axis=0),
-                    'std': np.std(eval(metrics), axis=0),
-                    'all_final_values': [met[-1] for met in eval(metrics)]
-                }
+                'mean': np.mean(eval(metrics), axis=0),
+                'std': np.std(eval(metrics), axis=0),
+                'all_final_values': [met[-1] for met in eval(metrics)]
+            }
     # merge meta data
     aggregate['optimizer_hyperparams'] = json_data['optimizer_hyperparams']
     aggregate['training_params'] = json_data['training_params']
     aggregate['testproblem'] = json_data['testproblem']
     aggregate['num_epochs'] = json_data['num_epochs']
+    aggregate['actual_num_epochs'] = len(json_data['train_losses'])
     aggregate['batch_size'] = json_data['batch_size']
 
     if 'wall_clock_time' in json_data:
@@ -65,7 +67,7 @@ def aggregate_runs(setting_folder):
     else:
         # we need to escape wall_clock_time in cases where it's not available
         aggregate['wall_clock_time'] = [0.]
-        
+
     return aggregate
 
 
@@ -88,7 +90,7 @@ def _check_if_metric_is_available(optimizer_path, metric):
         return False
 
 
-def _determine_available_metric(optimizer_path, metric, default_metric = 'valid_losses'):
+def _determine_available_metric(optimizer_path, metric, default_metric='valid_losses'):
     """Checks if the metric ``metric`` is availabe for the runs in ``optimizer_path``.
     If not, it returns the fallback metric ``default_metric``."""
     optimizer_name, testproblem_name = _get_optimizer_name_and_testproblem_from_path(optimizer_path)
@@ -126,7 +128,7 @@ def _clear_json(path, file):
 
 def _load_json(path, file_name):
     with open(os.path.join(path, file_name), "r") as f:
-         json_data = json.load(f)
+        json_data = json.load(f)
     return json_data
 
 
@@ -147,7 +149,7 @@ def _get_optimizer_name_and_testproblem_from_path(optimizer_path):
     return optimizer_name, testproblem
 
 
-def create_setting_analyzer_ranking(optimizer_path, mode = 'final', metric = 'valid_accuracies'):
+def create_setting_analyzer_ranking(optimizer_path, mode='final', metric='valid_accuracies'):
     """Reads in all settings in ``optimizer_path`` and sets up a ranking by returning an ordered list of SettingAnalyzers.
     Args:
         optimizer_path (str): The path to the optimizer to analyse.
@@ -166,13 +168,16 @@ def create_setting_analyzer_ranking(optimizer_path, mode = 'final', metric = 'va
 
     if mode == 'final':
         setting_analyzers_ordered = sorted(setting_analyzers, key=lambda idx: sgn * idx.get_final_value(metric))
+    elif mode == 'timestamp':
+        setting_analyzers_ordered = sorted(setting_analyzers, key=lambda idx: idx.timestamp)
     elif mode == 'best':
         setting_analyzers_ordered = sorted(setting_analyzers, key=lambda idx: sgn * idx.get_best_value(metric))
     elif mode == 'most':
         # if all have the same amount of runs, i.e. no 'most' avalaible, fall back to 'final'
         if all(x.n_runs == setting_analyzers[0].n_runs for x in setting_analyzers):
             optimizer_name, testproblem_name = _get_optimizer_name_and_testproblem_from_path(optimizer_path)
-            warnings.warn('All settings for {0:s} on test problem {1:s} have the same number of seeds runs. Mode \'most\' does not make sense and we use the fallback mode \'final\''.format(optimizer_path, testproblem_name), RuntimeWarning)
+            warnings.warn('All settings for {0:s} on test problem {1:s} have the same number of seeds runs. Mode \'most\' does not make sense and we use the fallback mode \'final\''.format(
+                optimizer_path, testproblem_name), RuntimeWarning)
             setting_analyzers_ordered = sorted(setting_analyzers, key=lambda idx: sgn * idx.get_final_value(metric))
         else:
             setting_analyzers_ordered = sorted(setting_analyzers, key=lambda idx: idx.n_runs, reverse=True)
@@ -201,17 +206,33 @@ class SettingAnalyzer:
         self.path = path
         self.n_runs = self.__get_number_of_runs()
         self.aggregate = aggregate_runs(path)
+        self.timestamp = self._get_timestamp()
 
     def __get_number_of_runs(self):
         """Calculates the total number of seed runs."""
         return len([run for run in os.listdir(self.path) if run.endswith(".json")])
+
+    def _get_timestamp(self):
+        """
+        Extracts the time-stamp from the name of the '.json' file. Only meaningful if there
+        is only one run for this setting.
+        """
+
+        for run in os.listdir(self.path):
+            if not run.endswith(".json"):
+                continue
+            else:
+                timestamp_string = run.split("__")[-1].split(".json")[0]
+                timestamp = int(timestamp_string)
+                return timestamp
 
     def get_final_value(self, metric):
         """Get the final (mean) value of the metric."""
         try:
             return self.aggregate[metric]['mean'][-1]
         except KeyError:
-            raise KeyError('Metric {0:s} not available for testproblem {1:s} of this setting'.format(metric, self.aggregate['testproblem']))
+            raise KeyError('Metric {0:s} not available for testproblem {1:s} of this setting'.format(
+                metric, self.aggregate['testproblem']))
 
     def get_best_value(self, metric):
         """Get the best (mean) value of the metric."""
@@ -223,7 +244,17 @@ class SettingAnalyzer:
             else:
                 raise NotImplementedError
         except KeyError:
-            raise KeyError('Metric {0:s} not available for testproblem {1:s} of this setting'.format(metric, self.aggregate['testproblem']))
+            raise KeyError('Metric {0:s} not available for testproblem {1:s} of this setting'.format(
+                metric, self.aggregate['testproblem']))
+
+    def get_wallclock_time(self):
+        """
+        Returns total time the run took in seconds.
+        """
+        return self.aggregate["wall_clock_time"][-1] - self.aggregate["wall_clock_time"][0]  # total time is difference between first and last measurement
+
+    def get_actual_num_epochs(self):
+        return self.aggregate["actual_num_epochs"]
 
     def calculate_speed(self, conv_perf_file):
         """Calculates the speed of the setting."""
@@ -260,4 +291,5 @@ class SettingAnalyzer:
         try:
             return self.aggregate[metric]['all_final_values']
         except KeyError:
-            raise KeyError('Metric {0:s} not available for testproblem {1:s} of this setting'.format(metric, self.aggregate['testproblem']))
+            raise KeyError('Metric {0:s} not available for testproblem {1:s} of this setting'.format(
+                metric, self.aggregate['testproblem']))
