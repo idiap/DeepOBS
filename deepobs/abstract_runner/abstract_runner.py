@@ -497,7 +497,8 @@ class Runner(abc.ABC):
         run_folder_name = self._add_training_params_to_output_dir_name(training_params, run_folder_name)
 
         file_name = "random_seed__{0:d}__".format(random_seed)
-        file_name += time.strftime("%Y-%m-%d-%H-%M-%S")
+        # file_name += time.strftime("%Y-%m-%d-%H-%M-%S")
+        file_name += str(time.time_ns())
 
         run_directory = os.path.join(output_dir, testproblem, self._optimizer_name,
                                      run_folder_name)
