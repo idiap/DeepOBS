@@ -473,9 +473,8 @@ def plot_box_hyperparam_optim(all_opts_all_logs, labels, y_type='test', x_type='
         for i, (label, x) in enumerate(all_opt_groups):
             # t = sns.boxplot(x='Category', y='y', data=x, orient='v', ax=ax[i], showfliers=False, width=0.2)
             optim_names = x.Category.unique()
-            print(optim_names)
             if not do_best:
-                optim_names = ['Adagrad', 'AdamLR', 'Adam', 'AdamDecay', 'SGD', 'SGDM', 'SGDMC', 'SGDMW', 'SGDMCWC', 'SGDDecay']
+                optim_names = labels
             ## make median
             print(optim_names)
             medianprops = dict(linestyle='-', linewidth=1, color='grey')
