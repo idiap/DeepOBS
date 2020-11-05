@@ -1,6 +1,12 @@
-# Copyright (c) 2020 Idiap Research Institute, http://www.idiap.ch/
+#
+# SPDX-FileCopyrightText: 2020 Idiap Research Institute <contact@idiap.ch>
+#
 # Written by Prabhu Teja <prabhu.teja@idiap.ch>,
-# Florian Mai <florian.mai@idiap.ch>
+#            Florian Mai <florian.mai@idiap.ch>
+#            Thijs Vogels <thijs.vogels@epfl.ch>
+#
+# SPDX-License-Identifier: MIT
+#
 
 import os
 import heapq
